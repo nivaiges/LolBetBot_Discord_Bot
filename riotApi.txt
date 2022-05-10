@@ -1,0 +1,2 @@
+isIngame - '@riotapi'
+hotStreak - "@riotapi'
