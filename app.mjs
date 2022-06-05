@@ -107,9 +107,6 @@ async function getSpectatorInfo(playerNameForSpectate) {
     summonerID +
     "?api_key=" +
     riotApiKey;
-    let peopleInGame = 0;
-    let playerArrSpectate;
-    let flag = "false";
     let playerStringData = "";
     //make a key map here that matches playerNameForSpectate and whether they are in game or not
     //match with boolean probably
@@ -126,29 +123,19 @@ async function getSpectatorInfo(playerNameForSpectate) {
       */
       playerStringData = JSON.stringify(response1.data);
      // console.log(playerStringData.substring(10,20));
-      
+      try{
+        playerHashMap.get(playerNameForSpectate);
+      }
+      catch(errors)
+      {
+        if(!playerHashMap.has(playerNameForSpectate))
       playerHashMap.set(playerNameForSpectate, playerStringData.substring(10,10));
+      }
       //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
       //this forloop is used to check to see if this is the first instance of the player being in game
       //if they are found within the array then a newBetInstance wont be created
-      for(let i = 0;i<playerArrSpectate.length;i++)
-      {
-          if(playerArrSpectate[i]==playerNameForSpectate)
-          {
-            flag = "true";
-        
 
-          } 
-      }
       //after the forloop finds nothing then the player is pushed into the Array
-      if(flag == "false")
-      {
-        newBetInstance(playerNameForSpectate, /* parsed MatchID*/);
-        //i think I could make a keymap here and push the constructor in it instead to save a line
-        playerArrSpectate.push(playerNameForSpectate);
-        peopleInGame++;
-      }
-        
     })
     .catch(function (error1) {
       // Error
@@ -157,10 +144,6 @@ async function getSpectatorInfo(playerNameForSpectate) {
       //we know this because if people in Game is greater than 0 that means someone was in a match
       //but the function hasn't recognized they are outside
       //i need to match a key map for this 
-      if(peopleInGame>0)
-      {
-          //determine the match results
-      }
       
       error1 = JSON.stringify(error1).substring(44,47);
       console.log("Error Caught in getSpectatorInfo: " + error1);
