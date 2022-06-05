@@ -16,7 +16,7 @@ let playerHashMap = new Map();
 client.login(token);
 client.on("ready", async () => {
   await mongoose.connect(
-    "",
+    "',
     {
       keepAlive: true,
     }
@@ -137,7 +137,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
 
       //after the forloop finds nothing then the player is pushed into the Array
     })
-    .catch(function (error1) {
+    .catch(function (error1) { 
       // Error
       //404 error is acceptable here, it means they are not in game
       //this if statement is used to see if someone has recently finished their game
@@ -146,6 +146,11 @@ async function getSpectatorInfo(playerNameForSpectate) {
       //i need to match a key map for this 
       
       error1 = JSON.stringify(error1).substring(44,47);
+      if(error1 == 404 && playerHashMap.has(playerNameForSpectate))
+      {
+
+        playerHashMap.delete(playerNameForSpectate);
+      }
       console.log("Error Caught in getSpectatorInfo: " + error1);
     });
 }
@@ -219,13 +224,21 @@ const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
 
 
 function newBetInstance(playerInGame, matchID) {
-this.player = playerInGame;
+  this.player = playerInGame;
   this.playersMatchID = matchID;
-  let flag = "false";
+  
 
 
 }
 
+function startInterval()
+{
+
+}
+function stopInterval()
+{
+
+}
 //probably going to have to have the matchID as a parameter
 
 function determineWinOrLose()
