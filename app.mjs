@@ -5,13 +5,12 @@ import betSchema from "./betListSchema.js";
 import token from "./token.js";
 import axios from "axios";
 import riotApiKey from "./riotApi.js";
-import testData from "./newDataFormat.js"
 import fs from "fs";
 const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
 var summonerID = "";
-
+let playerHashMap = new Map();
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
 client.login(token);
@@ -111,6 +110,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
     let peopleInGame = 0;
     let playerArrSpectate;
     let flag = "false";
+    let playerStringData = "";
     //make a key map here that matches playerNameForSpectate and whether they are in game or not
     //match with boolean probably
     //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
@@ -119,10 +119,15 @@ async function getSpectatorInfo(playerNameForSpectate) {
   axios
     .get(SpectatorAPICallString)
     .then(function (response1) {
-      // Success
-      console.log(response1.data);
-      //have to parse the right info that I need
-
+      /*
+      ======================
+      Success
+      ======================
+      */
+      playerStringData = JSON.stringify(response1.data);
+     // console.log(playerStringData.substring(10,20));
+      
+      playerHashMap.set(playerNameForSpectate, playerStringData.substring(10,10));
       //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
       //this forloop is used to check to see if this is the first instance of the player being in game
       //if they are found within the array then a newBetInstance wont be created
@@ -156,6 +161,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
       {
           //determine the match results
       }
+      
       error1 = JSON.stringify(error1).substring(44,47);
       console.log("Error Caught in getSpectatorInfo: " + error1);
     });
