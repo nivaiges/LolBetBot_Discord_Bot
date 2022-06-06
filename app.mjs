@@ -6,6 +6,7 @@ import token from "./token.js";
 import axios from "axios";
 import riotApiKey from "./riotApi.js";
 import fs from "fs";
+import { match } from "assert";
 const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
@@ -16,7 +17,7 @@ let playerHashMap = new Map();
 client.login(token);
 client.on("ready", async () => {
   await mongoose.connect(
-    "',
+    "",
     {
       keepAlive: true,
     }
@@ -24,9 +25,6 @@ client.on("ready", async () => {
 
   console.log(`Logged in as ${client.user.tag}!`);
 });
-
-
-
 
 //const fetchedTestData =
 
@@ -42,6 +40,7 @@ client.on("messageCreate", (message) => {
 
   if (command == "win") {
     message.channel.send("You bet that they would win!");
+    addPlayerChoiceHashMap(message.author.username, "win");
     mongoFetchPlayerData();
   } else if (command == "lose") {
     message.channel.send("You bet that they would lose!");
@@ -56,7 +55,6 @@ client.on("messageCreate", (message) => {
   }
   console.log(command + "" + args);
 });
-
 
 /*
 
@@ -101,17 +99,17 @@ function searchForPlayer(playerName) {
 //if no error code is returned that means the user is in game and we can then alert the discord channel that someone is in game.
 
 async function getSpectatorInfo(playerNameForSpectate) {
-  summonerID =  await mongoFetchPlayerData(playerNameForSpectate);
+  summonerID = await mongoFetchPlayerData(playerNameForSpectate);
   var SpectatorAPICallString =
     "https://na1.api.riotgames.com/lol/spectator/v4/active-games/by-summoner/" +
     summonerID +
     "?api_key=" +
     riotApiKey;
-    let playerStringData = "";
-    //make a key map here that matches playerNameForSpectate and whether they are in game or not
-    //match with boolean probably
-    //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
-    //enough to figure out if theyre in game or not
+  let playerStringData = "";
+  //make a key map here that matches playerNameForSpectate and whether they are in game or not
+  //match with boolean probably
+  //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
+  //enough to figure out if theyre in game or not
   console.log(SpectatorAPICallString);
   axios
     .get(SpectatorAPICallString)
@@ -122,14 +120,12 @@ async function getSpectatorInfo(playerNameForSpectate) {
       ======================
       */
       playerStringData = JSON.stringify(response1.data);
-     // console.log(playerStringData.substring(10,20));
-      try{
+      // console.log(playerStringData.substring(10,20));
+      try {
         playerHashMap.get(playerNameForSpectate);
-      }
-      catch(errors)
-      {
-        if(!playerHashMap.has(playerNameForSpectate))
-      playerHashMap.set(playerNameForSpectate, playerStringData.substring(10,10));
+      } catch (errors) {
+        if (!playerHashMap.has(playerNameForSpectate))
+          playerHashMap.set(playerNameForSpectate,playerStringData.substring(10, 10));
       }
       //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
       //this forloop is used to check to see if this is the first instance of the player being in game
@@ -137,18 +133,22 @@ async function getSpectatorInfo(playerNameForSpectate) {
 
       //after the forloop finds nothing then the player is pushed into the Array
     })
-    .catch(function (error1) { 
+    .catch(function (error1) {
       // Error
       //404 error is acceptable here, it means they are not in game
       //this if statement is used to see if someone has recently finished their game
       //we know this because if people in Game is greater than 0 that means someone was in a match
       //but the function hasn't recognized they are outside
-      //i need to match a key map for this 
-      
-      error1 = JSON.stringify(error1).substring(44,47);
-      if(error1 == 404 && playerHashMap.has(playerNameForSpectate))
-      {
+      //i need to match a key map for this
 
+      error1 = JSON.stringify(error1).substring(44, 47);
+      if (error1 == 404 && playerHashMap.has(playerNameForSpectate)) {
+        try{
+          getMatchData(playerNameForSpectate, playerHashMap.get(playerNameForSpectate))
+        } catch(err)
+        {
+          console.log("fatal api error, bet canceled");
+        }
         playerHashMap.delete(playerNameForSpectate);
       }
       console.log("Error Caught in getSpectatorInfo: " + error1);
@@ -170,27 +170,55 @@ function betAddPlayer(player) {
 async function mongoFetchPlayerData(playerNameToFetch) {
   try {
     let newFetchUser = playerNameToFetch;
-   // console.log(newFetchUser);
-    let fetchedData = await testSchema.findOne({"message" : {$regex : newFetchUser}});
+    // console.log(newFetchUser);
+    let fetchedData = await testSchema.findOne({
+      message: { $regex: newFetchUser },
+    });
     let splitFetchedData = JSON.stringify(fetchedData);
     splitFetchedData = splitFetchedData.split(",");
     for (var i = 0; i < splitFetchedData.length; i++) {
-      splitFetchedData[i] = splitFetchedData[i].replace(/[&\/\\#+()$~\[\]%,.'":*?<>{}]/g,"");
+      splitFetchedData[i] = splitFetchedData[i].replace(
+        /[&\/\\#+()$~\[\]%,.'":*?<>{}]/g,
+        ""
+      );
     }
-    splitFetchedData[0] = splitFetchedData[0].substring(2,splitFetchedData[0].length);
-    splitFetchedData[1] = splitFetchedData[1].substring(9,splitFetchedData[1].length);
-    splitFetchedData[2] = splitFetchedData[2].substring(9,splitFetchedData[2].length);
-    splitFetchedData[3] = splitFetchedData[3].substring(5,splitFetchedData[3].length);
-    splitFetchedData[4] = splitFetchedData[4].substring(4,splitFetchedData[4].length);
-    splitFetchedData[5] = splitFetchedData[5].substring(13,splitFetchedData[5].length);
-    splitFetchedData[6] = splitFetchedData[6].substring(12,splitFetchedData[6].length);
-    splitFetchedData[7] = splitFetchedData[7].substring(13,splitFetchedData[7].length);
+    splitFetchedData[0] = splitFetchedData[0].substring(
+      2,
+      splitFetchedData[0].length
+    );
+    splitFetchedData[1] = splitFetchedData[1].substring(
+      9,
+      splitFetchedData[1].length
+    );
+    splitFetchedData[2] = splitFetchedData[2].substring(
+      9,
+      splitFetchedData[2].length
+    );
+    splitFetchedData[3] = splitFetchedData[3].substring(
+      5,
+      splitFetchedData[3].length
+    );
+    splitFetchedData[4] = splitFetchedData[4].substring(
+      4,
+      splitFetchedData[4].length
+    );
+    splitFetchedData[5] = splitFetchedData[5].substring(
+      13,
+      splitFetchedData[5].length
+    );
+    splitFetchedData[6] = splitFetchedData[6].substring(
+      12,
+      splitFetchedData[6].length
+    );
+    splitFetchedData[7] = splitFetchedData[7].substring(
+      13,
+      splitFetchedData[7].length
+    );
     //splitFetchedData.splice(8, 8);
     return splitFetchedData[1];
   } catch (e) {
     console.log(e.message);
   }
-
 }
 
 //access file in mongo database -check
@@ -201,17 +229,28 @@ async function mongoFetchPlayerData(playerNameToFetch) {
 //use playerID to check if in game
 //if they are in game then alert the chat
 
+let trackPlayerBetMap = new Map();
+
+function addPlayerChoiceHashMap(discordUserID, choice){
+trackPlayerBetWinMap.set(discordUserID, choice);
+}
+
 async function playerListInGameChecker() {
   let playerListJSON = await betSchema.find({}, { _id: false, __v: false });
   let playerListString = JSON.stringify(playerListJSON);
-  playerListString = playerListString.replace(/[&\/\\#+()$~\[\]%.'":*?<>{}]/g,"");
+  playerListString = playerListString.replace(
+    /[&\/\\#+()$~\[\]%.'":*?<>{}]/g,
+    ""
+  );
   ///[^a-zA-Z0-9 ]/g
   let playerListStringArraySplit = playerListString.split(",");
 
   for (let i = 0; i < playerListStringArraySplit.length; i++) {
-    playerListStringArraySplit[i] = playerListStringArraySplit[i].substring(7,playerListStringArraySplit[i].length);
+    playerListStringArraySplit[i] = playerListStringArraySplit[i].substring(
+      7,
+      playerListStringArraySplit[i].length
+    );
     await getSpectatorInfo(playerListStringArraySplit[i]);
-   
   }
 }
 
@@ -222,34 +261,46 @@ const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
 //keep track of that game until it ends
 // we can probably use set interval and the match ID to keep track of the match
 
-
 function newBetInstance(playerInGame, matchID) {
   this.player = playerInGame;
   this.playersMatchID = matchID;
-  
-
-
 }
 
-function startInterval()
-{
+getMatchData("Thangs" , 4332304101);
 
+async function getMatchData1(playerNameForMatchData, gameID) {
+  let matchDataCallString = "https://americas.api.riotgames.com/lol/match/v5/matches/NA1_" + gameID + "?api_key=" + riotApiKey;
+  console.log(matchDataCallString);
+  //let matchDataToString = "";
+  axios.get(matchDataCallString).then(function(response) {
+    let participants = response.data.info.participants;
+    for (let i = 0; participants.length > i; i++) {
+      if (participants[i].summonerName == playerNameForMatchData) {
+        console.log(participants[i].win);
+      }
+    }
+  }).catch(function (error) {
+    console.log("Error in getMatchData " + error);
+  }) 
 }
-function stopInterval()
-{
 
-}
+
+
 //probably going to have to have the matchID as a parameter
 
-function determineWinOrLose()
+function checkUserBetChoiceHashMap(discordUserID)
 {
-//if matchID parsed data == win
-//channel.message.send(playerName + " has won their match!");
-//else if matchID parsed data == lose
-//channel.message.send(playerName + " has lost their match!");
-//else if matchID parsed data == remake
-//channel.message.send(playerName + " has remaked their match!");
 
-//bonus feature is to record and store coins within mongoDB
 }
 
+function determineWinOrLose() {
+  //if matchID parsed data == win
+  //channel.message.send(playerName + " has won their match!");
+  //else if matchID parsed data == lose
+  //channel.message.send(playerName + " has lost their match!");
+  //else if matchID parsed data == remake
+  //channel.message.send(playerName + " has remaked their match!");
+  //bonus feature is to record and store coins within mongoDB
+
+
+}
