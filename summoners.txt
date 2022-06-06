@@ -1,1 +1,0 @@
-{"id":"O2KFkjtxKPE5iKQ-U6crw6jIQc_RDVjZr6jSxcck5d5m_gY","accountId":"Bz2x2Ng2cLy5atcCCYfrUXHYArndkiJojlnO816ZETqI8JY","puuid":"nWIHsICzuQMBPdcSF3Q94pv8VH8WOek9yGLA9Qqr_PkZ7y1pfeUlXk_3Yh2RS0g5gthu9dqAGORv2A","name":"Nivy","profileIconId":588,"revisionDate":1651896357000,"summonerLevel":410}
