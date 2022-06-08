@@ -5,12 +5,12 @@ import betSchema from "./betListSchema.js";
 import token from "./token.js";
 import axios from "axios";
 import riotApiKey from "./riotApi.js";
-import fs from "fs";
-import { match } from "assert";
 const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
 var summonerID = "";
+let channelID = "953865344873799690";
+let playerBets = new Map();
 let playerHashMap = new Map();
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
@@ -25,9 +25,6 @@ client.on("ready", async () => {
 
   console.log(`Logged in as ${client.user.tag}!`);
 });
-
-//const fetchedTestData =
-
 //command handler/intake.
 // %win
 // %lose
@@ -38,17 +35,62 @@ client.on("messageCreate", (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
 
-  if (command == "win") {
-    message.channel.send("You bet that they would win!");
-    addPlayerChoiceHashMap(message.author.username, "win");
-    mongoFetchPlayerData();
+  if (command.includes("win")) {
+    //if the player is In-game
+    if (playerHashMap.has(args)) {
+      //if the playerBet map already contains their discord username
+      if (!playerBets.has(message.author.username)) {
+        //try to insert discord user in
+        try {
+          playerBets.set(
+            message.author.username,
+            betInstance(message.author.username, "win", args)
+          );
+        } catch (errors) {
+          message.channel.send(error);
+        }
+        message.channel.send("You bet that they would win!");
+      } else {
+        message.channel.send("That player isn't in game dumbass");
+      }
+    } else {
+      message.channel.send("You already voted");
+    }
+
+    console.log(message.author.username);
+    // console.log(trackPlayerBetMap.get());
+    //trackPlayerBetMap.set(message.author.username, "win")
   } else if (command == "lose") {
-    message.channel.send("You bet that they would lose!");
+    //if the player is In-game
+    if (playerHashMap.has(args)) {
+      //if the playerBet map already contains their discord username
+      if (!playerBets.has(message.author.username)) {
+        //try to insert discord user in
+        try {
+          playerBets.set(
+            message.author.username,
+            betInstance(message.author.username, "lose", args)
+          );
+        } catch (errors) {
+          message.channel.send(error);
+        }
+        message.channel.send("You bet that they would lose!");
+      } else {
+        message.channel.send("That player isn't in game dumbass");
+      }
+    } else {
+      message.channel.send("You already voted");
+    }
+  } else if (command == "initalize") {
+    message.channel.send(
+      "You initialized this channel \n " + message.channel.id
+    );
+    channelID = message.channel.id;
   } else if (command.includes("betadd")) {
     message.channel.send("You added: " + args + " to bet list!");
     let encodedPlayerName = encodeURI(args);
     searchForPlayer(encodedPlayerName);
-  } else if (command != "lose" && command != "win") {
+  } else if (command != "lose" && command != "win" && command != "initalize") {
     message.channel.send(
       command + " is not a valid command \n Please use %win or %lose"
     );
@@ -56,13 +98,14 @@ client.on("messageCreate", (message) => {
   console.log(command + "" + args);
 });
 
-/*
-
-  function sendChatNotification(playerNameInput)
-  {
-    message.channel.send(playerNameInput + " just got into game! \n Use %win [amount] or %lose [amount].");
+class betInstance {
+  constructor(summonerName, discordID, choice) {
+    this.summonerName = summonerName;
+    this.discordID = discordID;
+    this.choice = choice;
   }
-*/
+}
+
 //Takes user input (which is the name of a summoner. example: "Nivy")
 //uses [na1.api.riotgames.com] infront of the link to be used for searching a specific region
 //add ?api_key + [riotAPIKey] as a passcode of sorts for accessing riot api
@@ -121,16 +164,27 @@ async function getSpectatorInfo(playerNameForSpectate) {
       */
       playerStringData = JSON.stringify(response1.data);
       // console.log(playerStringData.substring(10,20));
-      try {
-        playerHashMap.get(playerNameForSpectate);
-      } catch (errors) {
-        if (!playerHashMap.has(playerNameForSpectate))
-          playerHashMap.set(playerNameForSpectate,playerStringData.substring(10, 10));
+
+      if (playerHashMap.get(playerNameForSpectate) === undefined) {
+        playerHashMap.set(
+          playerNameForSpectate,
+          playerStringData.substring(10, 10)
+        );
+        client.channels.cache
+          .get(channelID)
+          .send(
+            "Type %win " +
+              playerNameForSpectate +
+              " to bet that they'll win :green_square: \n Type %lose " +
+              playerNameForSpectate +
+              " to bet that they'll lose :red_square: "
+          );
       }
+      //
+      console.log(playerHashMap.get(playerNameForSpectate));
       //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
       //this forloop is used to check to see if this is the first instance of the player being in game
       //if they are found within the array then a newBetInstance wont be created
-
       //after the forloop finds nothing then the player is pushed into the Array
     })
     .catch(function (error1) {
@@ -140,16 +194,18 @@ async function getSpectatorInfo(playerNameForSpectate) {
       //we know this because if people in Game is greater than 0 that means someone was in a match
       //but the function hasn't recognized they are outside
       //i need to match a key map for this
-
       error1 = JSON.stringify(error1).substring(44, 47);
-      if (error1 == 404 && playerHashMap.has(playerNameForSpectate)) {
-        try{
-          getMatchData(playerNameForSpectate, playerHashMap.get(playerNameForSpectate))
-        } catch(err)
-        {
+      if (error1 === 404 && playerHashMap.has(playerNameForSpectate)) {
+        try {
+          getMatchData(
+            playerNameForSpectate,
+            playerHashMap.get(playerNameForSpectate)
+          );
+        } catch (err) {
           console.log("fatal api error, bet canceled");
         }
-        playerHashMap.delete(playerNameForSpectate);
+        mapForUniqueBetInstance.clear();
+        trackPlayerBetMap.clear();
       }
       console.log("Error Caught in getSpectatorInfo: " + error1);
     });
@@ -229,10 +285,8 @@ async function mongoFetchPlayerData(playerNameToFetch) {
 //use playerID to check if in game
 //if they are in game then alert the chat
 
-let trackPlayerBetMap = new Map();
-
-function addPlayerChoiceHashMap(discordUserID, choice){
-trackPlayerBetWinMap.set(discordUserID, choice);
+function addPlayerChoiceHashMap(discordUserID, choice) {
+  //trackPlayerBetWinMap.set(discordUserID, choice);
 }
 
 async function playerListInGameChecker() {
@@ -261,39 +315,52 @@ const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
 //keep track of that game until it ends
 // we can probably use set interval and the match ID to keep track of the match
 
-function newBetInstance(playerInGame, matchID) {
-  this.player = playerInGame;
-  this.playersMatchID = matchID;
-}
+//getMatchData("Thangs", 4332304101);
 
-getMatchData("Thangs" , 4332304101);
-
-async function getMatchData1(playerNameForMatchData, gameID) {
-  let matchDataCallString = "https://americas.api.riotgames.com/lol/match/v5/matches/NA1_" + gameID + "?api_key=" + riotApiKey;
+async function getMatchData(playerNameForMatchData, gameID) {
+  let matchDataCallString =
+    "https://americas.api.riotgames.com/lol/match/v5/matches/NA1_" +
+    gameID +
+    "?api_key=" +
+    riotApiKey;
   console.log(matchDataCallString);
+  let matchResult = "";
   //let matchDataToString = "";
-  axios.get(matchDataCallString).then(function(response) {
-    let participants = response.data.info.participants;
-    for (let i = 0; participants.length > i; i++) {
-      if (participants[i].summonerName == playerNameForMatchData) {
-        console.log(participants[i].win);
+  axios
+    .get(matchDataCallString)
+    .then(function (response) {
+      let participants = response.data.info.participants;
+      for (let i = 0; participants.length > i; i++) {
+        if (participants[i].summonerName == playerNameForMatchData) {
+          matchResult = participants[i].win;
+        }
       }
-    }
-  }).catch(function (error) {
-    console.log("Error in getMatchData " + error);
-  }) 
+      determineWinOrLose(matchResult);
+    })
+    .catch(function (error) {
+      console.log("Error in getMatchData " + error);
+    });
 }
-
-
 
 //probably going to have to have the matchID as a parameter
 
-function checkUserBetChoiceHashMap(discordUserID)
-{
+function checkUserBetChoiceHashMap(discordUserID) {}
 
+class Player {
+  constructor(discordName, betWins, betLosses, balance) {
+    this.discordName = discordName;
+    this.betWins = betWins;
+    this.betLosses = betLosses;
+    this.balance = balance;
+  }
 }
+function determineWinOrLose(outcome) {
+  if (outcome == "") {
+    client.channels.cache
+      .get(channelID)
+      .send("Fatal bet or API error. Bet canceled");
+  }
 
-function determineWinOrLose() {
   //if matchID parsed data == win
   //channel.message.send(playerName + " has won their match!");
   //else if matchID parsed data == lose
@@ -301,6 +368,4 @@ function determineWinOrLose() {
   //else if matchID parsed data == remake
   //channel.message.send(playerName + " has remaked their match!");
   //bonus feature is to record and store coins within mongoDB
-
-
 }
