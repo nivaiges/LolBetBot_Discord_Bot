@@ -10,7 +10,7 @@ const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
 var summonerID = "";
-let channelID = "953865344873799690";
+let channelID = "";
 let playerBets = new Map();
 let playerHashMap = new Map();
 const uri = "";
@@ -33,32 +33,40 @@ client.on("messageCreate", (message) => {
 
   const args = message.content.slice(prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
-
-  if (command.includes("win")) {
+  console.log(command);
+  
+  
+  if(command == "win")
+   {
     //if the player is In-game
-    if (playerHashMap.has(args)) {
+    console.log("test");
+    if (!(playerHashMap.has(args))) {
+      console.log("passss1")
       //if the playerBet map already contains their discord username
       let badCodeVariable = 0;
       let iterator1 = playerBets.values();
+      console.log(playerBets.size);
       for(let i=0;i<playerBets.size;i++)
       {
+        console.log("pass ", i);
         if(iterator1.next().value == message.author.username)
         {
-          message.channel.send("You already voted");
+          console.log("pass3")
+          message.channel.send("You already voted.");
           badCodeVariable = 1;
         }
       }
       if(badCodeVariable == 0)
       {
         playerBets.set(new betInstance(args, message.author.username, "win"), message.author.username);
-        message.channel.send("You bet they would win");
+        message.channel.send(message.author.username + " bet" + args + "would win!");
       }
     } 
     // console.log(trackPlayerBetMap.get());
     //trackPlayerBetMap.set(message.author.username, "win")
-  } else if (command.includes("lose")) {
+  } else if (command === ("lose")) {
     //if the player is In-game
-    if (playerHashMap.has(args)) {
+    if (!(playerHashMap.has(args))) {
       //if the playerBet map already contains their discord username
       let badCodeVariable = 0;
       let iterator1 = playerBets.values();
@@ -66,14 +74,14 @@ client.on("messageCreate", (message) => {
       {
         if(iterator1.next().value == message.author.username)
         {
-          message.channel.send("You already voted");
+          message.channel.send("You already voted.");
           badCodeVariable = 1;
         }
       }
       if(badCodeVariable == 0)
       {
-        playerBets.set(new betInstance(args, message.author.username, "win"), message.author.username);
-        message.channel.send("You bet they would lose");
+        playerBets.set(new betInstance(args, message.author.username, "lose"), message.author.username);
+        message.channel.send(message.author.username + " bet" + args + "would lose!");
       }
     } 
   } else if (command == "initalize") {
@@ -160,7 +168,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
   //match with boolean probably
   //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
   //enough to figure out if theyre in game or not
-  console.log(SpectatorAPICallString);
+  //  console.log(SpectatorAPICallString);
   axios
     .get(SpectatorAPICallString)
     .then(function (response1) {
@@ -174,9 +182,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
 
       if (playerHashMap.get(playerNameForSpectate) === undefined) {
         playerHashMap.set(
-          playerNameForSpectate,
-          playerStringData.substring(10, 10)
-        );
+          playerNameForSpectate,playerStringData.substring(10, 10));
         client.channels.cache
           .get(channelID)
           .send(
@@ -205,12 +211,11 @@ async function getSpectatorInfo(playerNameForSpectate) {
       if (error1 === "404" && playerHashMap.has(playerNameForSpectate)) {
         try {
           getMatchData(
-            playerNameForSpectate,
-            playerHashMap.get(playerNameForSpectate)
-          );
+            playerNameForSpectate, playerHashMap.get(playerNameForSpectate));
         } catch (err) {
           console.log("fatal api error, bet canceled");
         }
+        playerHashMap.remove(playerNameForSpectate);
       }
       console.log("Error Caught in getSpectatorInfo: " + error1);
     });
@@ -294,10 +299,10 @@ async function playerListInGameChecker() {
   let playerListJSON = await betSchema.find({}, { _id: false, __v: false });
   let playerListString = JSON.stringify(playerListJSON);
   playerListString = playerListString.replace(
-    /[&\/\\#+()$~\[\]%.'":*?<>{}]/g,
+    /[&\/\\#+()$~\[\].'":*?<>{}]/g,
     ""
   );
-  ///[^a-zA-Z0-9 ]/g
+    ///[^a-zA-Z0-9 ]/g
   let playerListStringArraySplit = playerListString.split(",");
 
   for (let i = 0; i < playerListStringArraySplit.length; i++) {
@@ -305,7 +310,9 @@ async function playerListInGameChecker() {
       7,
       playerListStringArraySplit[i].length
     );
-    await getSpectatorInfo(playerListStringArraySplit[i]);
+      
+    await getSpectatorInfo(decodeURI(playerListStringArraySplit[i]));
+  
   }
 }
 
@@ -336,6 +343,8 @@ async function getMatchData(playerNameForMatchData, gameID) {
           matchResult = participants[i].win;
         }
       }
+      //win = true
+      //lose = false
       determineWinOrLose(matchResult, playerNameForMatchData);
     })
     .catch(function (error) {
@@ -478,11 +487,11 @@ async function findPerson(key, value, winOrLose, playerFromWinorLose) {
 //===================
 
 //playerBets(discordName, betInstance(message.author.username, "lose", args)
-
+/*
 playerBets.set(new betInstance("mich", "nivy", "win"), "nivy");
 playerBets.set(new betInstance("jacob", "TJ", "lose"), "TJ");
 playerBets.set(new betInstance("mich", "naweed", "lose"), "naweed");
-
+*/
 async function determineWinOrLose(outcome, summonerFromMatchData) {
   console.log(outcome);
   const iterator1 = playerBets.keys();
@@ -492,13 +501,17 @@ async function determineWinOrLose(outcome, summonerFromMatchData) {
     if (currValue.summonerName === summonerFromMatchData) {
       if (currValue.choice === "win" && outcome === "win") {
         distributeReward(currValue.discordID, "correct");
+        client.channels.cache.get(channelID).send(currValue.discordID + " was correct!")
         console.log(currValue.discordID + " " + currValue.summonerName + " correct");
       } else if (currValue.choice === "lose" && outcome === "lose") {
         distributeReward(currValue.discordID, "correct");
+        client.channels.cache.get(channelID).send(currValue.discordID + " was correct!")
         console.log(currValue.discordID + " " + currValue.summonerName + " correct");
       } else {
         distributeReward(currValue.discordID, "wrong");
         console.log(currValue.discordID + " " + currValue.summonerName + " wrong");
+        client.channels.cache.get(channelID).send(currValue.discordID + " was wrong!")
+
       }
     }
   }
@@ -516,7 +529,6 @@ async function determineWinOrLose(outcome, summonerFromMatchData) {
   */
 }
 
-determineWinOrLose("lose", "mich");
 //map key and value
 
 async function distributeReward(person, rightOrWrong)
@@ -546,13 +558,13 @@ if(rightOrWrong === "correct")
 
 async function checkBalance(discordUser)
 {
-  let discordUser = await betBalanceSchema.findOne({"message.discordName": discordUser});
- if(discordUser === undefined)
+  let discordUsers = await betBalanceSchema.findOne({"message.discordName": discordUser});
+ if(discordUsers === undefined)
  {
   client.channels.cache.get(channelID).send("You don't have a balance, please bet on games.");
  }else 
  {
-  client.channels.cache.get(channelID).send(JSON.stringify(discordUser));
+  client.channels.cache.get(channelID).send(JSON.stringify(discordUsers));
  }
 }
 
