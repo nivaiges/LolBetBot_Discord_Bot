@@ -10,7 +10,7 @@ const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
 var summonerID = "";
-let channelID = "";
+let channelID = "953865344873799690";
 let playerBets = new Map();
 let playerHashMap = new Map();
 const uri = "";
@@ -38,52 +38,59 @@ client.on("messageCreate", (message) => {
   
   if(command == "win")
    {
+    let iterator1 = playerBets.keys();
+    let holdIterator;
+    let skipPlayerBetSet = 0;
     //if the player is In-game
-    console.log("test");
-    if (!(playerHashMap.has(args))) {
-      console.log("passss1")
-      //if the playerBet map already contains their discord username
-      let badCodeVariable = 0;
-      let iterator1 = playerBets.values();
-      console.log(playerBets.size);
+    //if the playerBet map already contains their discord username
+    if ((playerHashMap.has(args[0]))) {
       for(let i=0;i<playerBets.size;i++)
       {
-        console.log("pass ", i);
-        if(iterator1.next().value == message.author.username)
-        {
-          console.log("pass3")
-          message.channel.send("You already voted.");
-          badCodeVariable = 1;
-        }
+       holdIterator = (iterator1.next().value);
+       if(holdIterator.discordID == message.author.username && holdIterator.summonerName == args[0])
+       {
+        message.channel.send("You already voted!");
+        skipPlayerBetSet = 1;
+       }
       }
-      if(badCodeVariable == 0)
+      if(skipPlayerBetSet == 0)
       {
         playerBets.set(new betInstance(args, message.author.username, "win"), message.author.username);
-        message.channel.send(message.author.username + " bet" + args + "would win!");
+        message.channel.send(message.author.username + " bet " + args + " would win!");
       }
-    } 
+      
+    } else 
+    {
+      message.channel.send("That Player isn't in game or isn't on the betlist.");
+    }
     // console.log(trackPlayerBetMap.get());
     //trackPlayerBetMap.set(message.author.username, "win")
   } else if (command === ("lose")) {
+    let iterator1 = playerBets.keys();
+    let holdIterator;
+    let skipPlayerBetSet = 0;
     //if the player is In-game
-    if (!(playerHashMap.has(args))) {
-      //if the playerBet map already contains their discord username
-      let badCodeVariable = 0;
-      let iterator1 = playerBets.values();
+    //if the playerBet map already contains their discord username
+    if ((playerHashMap.has(args[0]))) {
       for(let i=0;i<playerBets.size;i++)
       {
-        if(iterator1.next().value == message.author.username)
-        {
-          message.channel.send("You already voted.");
-          badCodeVariable = 1;
-        }
+       holdIterator = (iterator1.next().value);
+       if(holdIterator.discordID == message.author.username && holdIterator.summonerName == args[0])
+       {
+        message.channel.send("You already voted!");
+        skipPlayerBetSet = 1;
+       }
       }
-      if(badCodeVariable == 0)
+      if(skipPlayerBetSet == 0)
       {
         playerBets.set(new betInstance(args, message.author.username, "lose"), message.author.username);
-        message.channel.send(message.author.username + " bet" + args + "would lose!");
+        message.channel.send(message.author.username + " bet " + args + " would lose!");
       }
-    } 
+      
+    } else 
+    {
+      message.channel.send("That Player isn't in game or isn't on the betlist.");
+    }
   } else if (command == "initalize") {
     message.channel.send(
       "You initialized this channel \n " + message.channel.id
@@ -164,6 +171,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
     "?api_key=" +
     riotApiKey;
   let playerStringData = "";
+  //console.log(SpectatorAPICallString);
   //make a key map here that matches playerNameForSpectate and whether they are in game or not
   //match with boolean probably
   //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
@@ -178,17 +186,15 @@ async function getSpectatorInfo(playerNameForSpectate) {
       ======================
       */
       playerStringData = JSON.stringify(response1.data);
-      // console.log(playerStringData.substring(10,20));
-
       if (playerHashMap.get(playerNameForSpectate) === undefined) {
-        playerHashMap.set(
-          playerNameForSpectate,playerStringData.substring(10, 10));
+        playerHashMap.set(playerNameForSpectate, playerStringData.substring(10, 20));
+        console.log(playerStringData.substring(10,20));
         client.channels.cache
           .get(channelID)
           .send(
-            "Type %win " +
+            "\nType %win " +
               playerNameForSpectate +
-              " to bet that they'll win :green_square: \n Type %lose " +
+              " to bet that they'll win   :green_square: \n\nType %lose " +
               playerNameForSpectate +
               " to bet that they'll lose :red_square: "
           );
@@ -215,7 +221,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
         } catch (err) {
           console.log("fatal api error, bet canceled");
         }
-        playerHashMap.remove(playerNameForSpectate);
+        playerHashMap.delete(playerNameForSpectate);
       }
       console.log("Error Caught in getSpectatorInfo: " + error1);
     });
@@ -323,7 +329,7 @@ const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
 //keep track of that game until it ends
 // we can probably use set interval and the match ID to keep track of the match
 
-//getMatchData("Thangs", 4332304101);
+//await getMatchData("kalionex", 4341154066);
 
 async function getMatchData(playerNameForMatchData, gameID) {
   let matchDataCallString =
@@ -331,21 +337,25 @@ async function getMatchData(playerNameForMatchData, gameID) {
     gameID +
     "?api_key=" +
     riotApiKey;
-  console.log(matchDataCallString);
+    console.log(gameID);
+  //console.log(matchDataCallString);
   let matchResult = "";
   //let matchDataToString = "";
   axios
     .get(matchDataCallString)
     .then(function (response) {
       let participants = response.data.info.participants;
+      console.log(playerNameForMatchData)
       for (let i = 0; participants.length > i; i++) {
-        if (participants[i].summonerName == playerNameForMatchData) {
+        if ((participants[i].summonerName).toLowerCase() == playerNameForMatchData) {
           matchResult = participants[i].win;
         }
       }
       //win = true
       //lose = false
       determineWinOrLose(matchResult, playerNameForMatchData);
+      playerHashMap.delete(playerNameForMatchData);
+      console.log(playerHashMap.get(playerNameForMatchData));
     })
     .catch(function (error) {
       console.log("Error in getMatchData " + error);
@@ -465,7 +475,7 @@ async function findPerson(key, value, winOrLose, playerFromWinorLose) {
   }
 
   if (playerBets.get(key).summonerName === playerFromWinorLose) {
-    playerBets.remove(playerBets.get());
+    playerBets.delete(playerBets.get());
   }
 }
 
@@ -493,7 +503,14 @@ playerBets.set(new betInstance("jacob", "TJ", "lose"), "TJ");
 playerBets.set(new betInstance("mich", "naweed", "lose"), "naweed");
 */
 async function determineWinOrLose(outcome, summonerFromMatchData) {
-  console.log(outcome);
+  console.log("outcome " + outcome);
+  if(outcome == "true")
+{
+outcome = "win";
+} else if(outcome == "false")
+{
+outcome = "lose";
+}
   const iterator1 = playerBets.keys();
   let currValue;
   for (let i = 0; i < playerBets.size; i++) {
@@ -558,13 +575,22 @@ if(rightOrWrong === "correct")
 
 async function checkBalance(discordUser)
 {
-  let discordUsers = await betBalanceSchema.findOne({"message.discordName": discordUser});
- if(discordUsers === undefined)
+  let discordUsers = await betBalanceSchema.findOne({"message.discordName": discordUser},{ _id: false, __v: false});
+   console.log(discordUsers.message.betWins);
+ if(discordUsers === null)
  {
-  client.channels.cache.get(channelID).send("You don't have a balance, please bet on games.");
+  client.channels.cache.get(channelID).send("You don't have a balance, creating one for you now.");
+  await new betBalanceSchema({message: new Player(discordUser, 0, 0, 0),}).save();
  }else 
  {
-  client.channels.cache.get(channelID).send(JSON.stringify(discordUsers));
+  client.channels.cache.get(channelID).send(("Name: " + discordUsers.message.discordName + "\n"));
+  client.channels.cache.get(channelID).send(("Correct Bet Guesses: " + discordUsers.message.betWins + "\n"));
+  client.channels.cache.get(channelID).send(("Incorrect Bet Guesses: " + discordUsers.message.betLosses + "\n"));
+  client.channels.cache.get(channelID).send(("Balance: " + discordUsers.message.balance));
+  if(discordUsers.message.balance<=0)
+  {
+    client.channels.cache.get(channelID).send("broke ass");
+  }
  }
 }
 
