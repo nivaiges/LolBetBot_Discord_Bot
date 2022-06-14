@@ -6,6 +6,7 @@ import betBalanceSchema from "./userBalanceSchema.js";
 import token from "./token.js";
 import axios from "axios";
 import riotApiKey from "./riotApi.js";
+import betListSchema from "./betListSchema.js";
 const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
@@ -14,6 +15,7 @@ let channelID = "985533385139183626";
 let playerBets = new Map();
 let playerHashMap = new Map();
 const uri = "";
+let playerListSchema;
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
 client.login(token);
@@ -28,7 +30,7 @@ client.on("ready", async () => {
 // %win
 // %lose
 // %anything_else --> will not execute anything outside of the statement
-client.on("messageCreate", (message) => {
+client.on("messageCreate", async (message) => {
   if (!message.content.startsWith(prefix) || message.author.bot) return;
 
   const args = message.content.slice(prefix.length).trim().split(/ +/g);
@@ -99,25 +101,46 @@ client.on("messageCreate", (message) => {
         "That Player isn't in game or isn't on the betlist."
       );
     }
-  } else if (command == "initalize") {
+  } else if (command == "credits") {
     message.channel.send(
-      "You initialized this channel \n " + message.channel.id
+      "**Main Author:**\n<https://github.com/nivaiges>\n**Contributers:**\n<https://github.com/marcobuettner>\n<https://github.com/Jacobwill2501>\n<https://darkintaqt.com/>\n**Artists:**\n<https://twitter.com/diazex_art>\n" +
+      "*LoLBetBot isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties." +
+        " Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.*"
     );
     channelID = message.channel.id;
   } else if (command.includes("betadd")) {
-    message.channel.send("You added: " + args + " to bet list!");
     let encodedPlayerName = encodeURI(args);
     searchForPlayer(encodedPlayerName);
   } else if (command == "balance") {
     checkBalance(message.author.username);
-  } else if (
+  } else if (command == "help") {
+    message.channel.send(
+"**__LoLBetBot commands:__**\n\n**%betadd [*summoner*]** - adds specified summoner to be bet on.\n\n**%win [*summoner*]** - bet that the specified summoner will win their game.\n\n**%lose [*summoner*]** - bet that the specified summoner will lose their game.\n\n**%balance** - displays user balance.\n\n**%credits** - displays bot authors and contributers.\n\n**%help** - where you are right now."
+    );
+  }else if(command == "warn" && message.author.username == "nivy")
+  {
+    message.channel.send("@"+args + " you have been warned.")
+  } else if(command == "betlist")
+  {
+    playerListSchema = await betSchema.findOne({"message": args});
+    if(playerListSchema!=null)
+    {
+      message.channel.send(args[0] + " is on the betList")
+    }else{
+      message.channel.send(args[0] + " is on the betList")
+    }
+  }
+  else if (
     command != "lose" &&
     command != "win" &&
-    command != "initalize" &&
-    command != "balance"
+    command != "credits" &&
+    command != "balance" &&
+    command != "help" &&
+    command!= "warn" &&
+    command!= "betlist"
   ) {
     message.channel.send(
-      command + " is not a valid command \n Please use %win or %lose"
+      command + " is not a valid command \nPlease use %win or %lose"
     );
   }
   console.log(command + "" + args);
@@ -144,29 +167,42 @@ class betInstance {
 //uses [na1.api.riotgames.com] infront of the link to be used for searching a specific region
 //add ?api_key + [riotAPIKey] as a passcode of sorts for accessing riot api
 
-function searchForPlayer(playerName) {
+
+
+async function searchForPlayer(playerName) {
   // Set up the correct API call
-  searchText = playerName;
-  var APICallString =
-    "https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" +
-    searchText +
-    "?api_key=" +
-    riotApiKey;
-  // Handle The API call
-  axios
-    .get(APICallString)
-    .then(function (response) {
-      // Success
-      console.log(response.data);
-      betAddPlayer(response.data);
-      new betSchema({
-        message: searchText.toLowerCase(),
-      }).save();
-    })
-    .catch(function (error) {
-      // Error
-      console.log("Error Caught in searchForPlayer:  " + error);
-    });
+  let playerDBSearch = await betSchema.findOne({ message: playerName });
+  let decodedName = decodeURI(playerName);
+  if (playerDBSearch == null) {
+    searchText = playerName;
+    var APICallString =
+      "https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/" +
+      searchText +
+      "?api_key=" +
+      riotApiKey;
+    // Handle The API call
+    axios
+      .get(APICallString)
+      .then(function (response) {
+        // Success
+        betAddPlayer(response.data);
+        new betSchema({
+          message: searchText.toLowerCase(),
+        }).save();
+      })
+      .catch(function (error) {
+        // Error
+        console.log("Error Caught in searchForPlayer:  " + error);
+        client.channels.cache
+          .get(channelID)
+          .send(decodedName + " is not a real summoner name.");
+      });
+    client.channels.cache.get(channelID).send("You added: " + decodedName + " to bet list!");
+  } else {
+    client.channels.cache
+      .get(channelID)
+      .send(decodedName + " is already on the best list.");
+  }
 }
 
 //purpose of this function is to check whether a user is in game. the data that it returns is not used
@@ -243,8 +279,7 @@ async function getSpectatorInfo(playerNameForSpectate) {
         playerHashMap.delete(playerNameForSpectate);
       }
 
-      if(error1!="404")
-      {
+      if (error1 != "404") {
         console.log("Error Caught in getSpectatorInfo: " + error1);
       }
     });
@@ -259,7 +294,7 @@ function betAddPlayer(player) {
   new testSchema({
     message: playerArray,
   }).save();
-  console.log("Player was inserted into the data  base");
+  console.log("Player was inserted into the database");
 }
 
 async function mongoFetchPlayerData(playerNameToFetch) {
@@ -344,7 +379,7 @@ async function playerListInGameChecker() {
   }
 }
 
-const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
+const repeatCheckInGame = setInterval(playerListInGameChecker, 15000);
 
 //create new function when get into game
 //use call this function when spectate function is called & finds that someone is in game
@@ -380,7 +415,9 @@ async function getMatchData(playerNameForMatchData, gameID) {
       //client.channels.cache.get(channelID).send("Match Over.");
       determineWinOrLose(matchResult, playerNameForMatchData);
       playerHashMap.delete(playerNameForMatchData);
-      console.log("playerHashMap.get: " + playerHashMap.get(playerNameForMatchData));
+      console.log(
+        "playerHashMap.get: " + playerHashMap.get(playerNameForMatchData)
+      );
     })
     .catch(function (error) {
       console.log("Error in getMatchData " + error);
@@ -528,8 +565,6 @@ playerBets.set(new betInstance("jacob", "TJ", "lose"), "TJ");
 playerBets.set(new betInstance("mich", "naweed", "lose"), "naweed");
 */
 
-
-
 async function determineWinOrLose(outcome, summonerFromMatchData) {
   console.log("outcome:" + outcome);
   if (outcome == "true") {
@@ -620,9 +655,7 @@ async function checkBalance(discordUser) {
     { _id: false, __v: false }
   );
   if (discordUsers === null) {
-    client.channels.cache
-      .get(channelID)
-      .send("You don't have a balance, creating one for you now.");
+    client.channels.cache.get(channelID).send("You don't have a balance, creating one for you now.");
     await new betBalanceSchema({
       message: new Player(discordUser, 0, 0, 20000),
     }).save();
