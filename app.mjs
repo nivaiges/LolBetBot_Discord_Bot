@@ -1,4 +1,4 @@
-import Discord from "discord.js";
+import Discord, { MessageEmbed } from "discord.js";
 import mongoose from "mongoose";
 import testSchema from "./testSchema.js";
 import betSchema from "./betListSchema.js";
@@ -18,6 +18,11 @@ let riotAPIBuffer = new Map();
 const uri = "";
 let playerListSchema;
 let newError = "";
+let balTopCountAmt;
+let balTopLongestName = 0;
+let padBlankString = "";
+let longestPercent = 0;
+let balTopWinPercent;
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
 client.login(token);
@@ -57,7 +62,12 @@ client.on("messageCreate", async (message) => {
         }
       }
       if (skipPlayerBetSet == 0) {
-        console.log(playerBets.set(new betInstance(args, message.author.username, "win"), message.author.username));
+        console.log(
+          playerBets.set(
+            new betInstance(args, message.author.username, "win"),
+            message.author.username
+          )
+        );
         message.channel.send(
           message.author.username + " bet " + args + " would win!"
         );
@@ -103,7 +113,7 @@ client.on("messageCreate", async (message) => {
   } else if (command == "credits") {
     message.channel.send(
       "**Main Author:**\n<https://github.com/nivaiges>\n**Contributers:**\n<https://github.com/marcobuettner>\n<https://github.com/Jacobwill2501>\n<https://darkintaqt.com/>\n**Artists:**\n<https://twitter.com/diazex_art>\n" +
-      "*LoLBetBot isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties." +
+        "*LoLBetBot isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties." +
         " Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.*"
     );
     channelID = message.channel.id;
@@ -114,35 +124,32 @@ client.on("messageCreate", async (message) => {
     checkBalance(message.author.username);
   } else if (command == "help") {
     message.channel.send(
-"**__LoLBetBot commands:__**\n\n**%betadd [*summoner*]** - adds specified summoner to be bet on.\n\n**%win [*summoner*]** - bet that the specified summoner will win their game.\n\n**%lose [*summoner*]** - bet that the specified summoner will lose their game.\n\n**%balance** - displays user balance.\n\n**%credits** - displays bot authors and contributers.\n\n**%help** - where you are right now."
+      "**__LoLBetBot commands:__**\n\n**%betadd [*summoner*]** - adds specified summoner to be bet on.\n\n**%win [*summoner*]** - bet that the specified summoner will win their game.\n\n**%lose [*summoner*]** - bet that the specified summoner will lose their game.\n\n**%balance** - displays user balance.\n\n**%credits** - displays bot authors and contributers.\n\n**%help** - where you are right now."
     );
-  }else if(command == "warn" && message.author.username == "nivy")
-  {
-    message.channel.send("@"+args + " you have been warned.")
-  } else if(command == "betlist")
-  {
-    playerListSchema = await betSchema.findOne({"message": args});
-    if(playerListSchema!=null)
-    {
-      message.channel.send(args[0] + " is on the betList")
-    }else{
-      message.channel.send(args[0] + " is on the betList")
+  } else if (command == "warn" && message.author.username == "nivy") {
+    message.channel.send("@" + args + " you have been warned.");
+  } else if (command == "betlist") {
+    playerListSchema = await betSchema.findOne({ message: args });
+    if (playerListSchema != null) {
+      message.channel.send(args[0] + " is on the betList");
+    } else {
+      message.channel.send(args[0] + " is on the betList");
     }
-  }
-  else if(command == "startint" && message.author.username == "nivy")
-  {
+  } else if (command == "startint" && message.author.username == "nivy") {
     console.log(".");
     startInterval();
-  }
-  else if (
+  } else if (command == "baltop") {
+    balTop(message.channel.id);
+  } else if (
     command != "lose" &&
     command != "win" &&
     command != "credits" &&
     command != "balance" &&
     command != "help" &&
-    command!= "warn" &&
-    command!= "betlist" &&
-    command!= "startint"
+    command != "warn" &&
+    command != "betlist" &&
+    command != "startint" &&
+    command != "baltop"
   ) {
     message.channel.send(
       command + " is not a valid command \nPlease use %win or %lose"
@@ -172,8 +179,6 @@ class betInstance {
 //uses [na1.api.riotgames.com] infront of the link to be used for searching a specific region
 //add ?api_key + [riotAPIKey] as a passcode of sorts for accessing riot api
 
-
-
 async function searchForPlayer(playerName) {
   // Set up the correct API call
   let playerDBSearch = await betSchema.findOne({ message: playerName });
@@ -202,7 +207,9 @@ async function searchForPlayer(playerName) {
           .get(channelID)
           .send(decodedName + " is not a real summoner name.");
       });
-    client.channels.cache.get(channelID).send("You added: " + decodedName + " to bet list!");
+    client.channels.cache
+      .get(channelID)
+      .send("You added: " + decodedName + " to bet list!");
   } else {
     client.channels.cache
       .get(channelID)
@@ -224,13 +231,14 @@ async function getSpectatorInfo(playerNameForSpectate) {
     "?api_key=" +
     riotApiKey;
   let playerStringData = "";
+  let boolean = riotAPIBuffer.get(playerNameForSpectate);
   //console.log(SpectatorAPICallString);
   //make a key map here that matches playerNameForSpectate and whether they are in game or not
   //match with boolean probably
   //could match with 3 things if thats possible playerNameForSpectate boolean and matchID but the function will be called
   //enough to figure out if theyre in game or not
 
-  //console.log(SpectatorAPICallString);
+ // console.log(SpectatorAPICallString);
   axios
     .get(SpectatorAPICallString)
     .then(function (response1) {
@@ -240,29 +248,31 @@ async function getSpectatorInfo(playerNameForSpectate) {
       ======================
       */
       playerStringData = JSON.stringify(response1.data);
-      playerStringData = playerStringData.substring(10,20);
-      console.log("String Data: " + playerStringData);
-      //console.log("playerStringdata:" + playerStringData)
-      if (playerHashMap.get(playerNameForSpectate) === undefined) {
-        playerHashMap.set((playerNameForSpectate), parseInt(playerStringData));
-        //not the problem
-        console.log("gameID:"+playerHashMap.get((playerNameForSpectate)));
-        client.channels.cache
-          .get(channelID)
-          .send(
-            "\nType %win " +
-              playerNameForSpectate +
-              " to bet that they'll win   :green_square: \n\nType %lose " +
-              playerNameForSpectate +
-              " to bet that they'll lose :red_square: "
-          );
-      }
-      //
+      playerStringData = playerStringData.substring(10, 20);
+      if (!riotAPIBuffer.has(playerNameForSpectate) && !boolean) {
+        console.log("String Data: " + playerStringData);
+        //console.log("playerStringdata:" + playerStringData)
+        if (playerHashMap.get(playerNameForSpectate) === undefined) {
+          playerHashMap.set(playerNameForSpectate, parseInt(playerStringData));
+          //not the problem
+          console.log("gameID:" + playerHashMap.get(playerNameForSpectate));
+          client.channels.cache
+            .get(channelID)
+            .send(
+              "\nType %win " +
+                playerNameForSpectate +
+                " to bet that they'll win   :green_square: \n\nType %lose " +
+                playerNameForSpectate +
+                " to bet that they'll lose :red_square: "
+            );
+        }
+        //
 
-      //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
-      //this forloop is used to check to see if this is the first instance of the player being in game
-      //if they are found within the array then a newBetInstance wont be created
-      //after the forloop finds nothing then the player is pushed into the Array
+        //check to see if the playerName used in the current Spec function is found within the playerArrSpectate array
+        //this forloop is used to check to see if this is the first instance of the player being in game
+        //if they are found within the array then a newBetInstance wont be created
+        //after the forloop finds nothing then the player is pushed into the Array
+      }
     })
     .catch(function (error1) {
       // Error
@@ -275,26 +285,40 @@ async function getSpectatorInfo(playerNameForSpectate) {
         newError = error1;
         error1 = JSON.stringify(error1).substring(44, 47);
       }
-      if (playerHashMap.has(playerNameForSpectate) && !riotAPIBuffer.has(playerHashMap.get(playerNameForSpectate))) {
-        console.log("PlayerName: "(playerNameForSpectate) + " GameID: " + playerHashMap.get(playerNameForSpectate));
-        riotAPIBuffer.set(playerHashMap.get(playerNameForSpectate), playerNameForSpectate);
+      if (
+        playerHashMap.has(playerNameForSpectate) &&
+        !riotAPIBuffer.has(playerHashMap.get(playerNameForSpectate))
+      ) {
+        console.log(
+          "PlayerName: " +
+            playerNameForSpectate +
+            " GameID: " +
+            playerHashMap.get(playerNameForSpectate)
+        );
+        riotAPIBuffer.set(
+          playerHashMap.get(playerNameForSpectate),
+          playerNameForSpectate
+        );
         try {
-          getMatchData((playerNameForSpectate), playerHashMap.get(playerNameForSpectate))
+          getMatchData(
+            playerNameForSpectate,
+            playerHashMap.get(playerNameForSpectate)
+          );
         } catch (err) {
           console.log("fatal api error, bet canceled");
         }
       }
 
-      if (error1 != "404") {
-
-        console.log("Error Caught in getSpectatorInfo: " + JSON.stringify(newError).substring(44, 57));
+      if (error1 != "404" && error1 != "400") {
+        console.log(
+          "Error Caught in getSpectatorInfo: " +
+            JSON.stringify(newError).substring(44, 57)
+        );
       }
     });
 }
 
-function clearInt() {
-  clearInterval(repeatCheckInGame);
-}
+function deleteAPIBuffer() {}
 
 function betAddPlayer(player) {
   player = JSON.stringify(player);
@@ -389,10 +413,7 @@ async function playerListInGameChecker() {
   }
 }
 
-function startInterval()
-{
-}
-const repeatCheckInGame = setInterval(playerListInGameChecker, 5000);
+const repeatCheckInGame = setInterval(playerListInGameChecker, 30000);
 
 //create new function when get into game
 //use call this function when spectate function is called & finds that someone is in game
@@ -407,8 +428,8 @@ async function getMatchData(playerNameForMatchData, gameID) {
     gameID +
     "?api_key=" +
     riotApiKey;
-  console.log("PlayerName(M):"+playerNameForMatchData + " GameID:"+gameID);
-  console.log("GameID:"+gameID);
+  console.log("PlayerName(M):" + playerNameForMatchData + " GameID:" + gameID);
+  console.log("GameID:" + gameID);
   //console.log(matchDataCallString);
   let matchResult = "";
   //let matchDataToString = "";
@@ -425,24 +446,26 @@ async function getMatchData(playerNameForMatchData, gameID) {
         }
       }
       //console.log("Match Result: " + matchResult + " type of " + typeof(matchResult));
-      
-      if(matchResult == true)
-      {
+
+      if (matchResult == true) {
         determineWinOrLose("true", playerNameForMatchData);
-      }else
-      {
+        playerBets.delete(playerNameForMatchData);
+      } else {
         determineWinOrLose("false", playerNameForMatchData);
+        playerBets.delete(playerNameForMatchData);
       }
       //win = true
       //lose = false
       //client.channels.cache.get(channelID).send("Match Over.");
       console.log("playerName:" + playerNameForMatchData);
-      console.log("playerHashMap.get: " + playerHashMap.get((playerNameForMatchData)));
+      console.log(
+        "playerHashMap.get: " + playerHashMap.get(playerNameForMatchData)
+      );
     })
     .catch(function (error) {
       console.log("Error in getMatchData " + error);
     });
-  }
+}
 
 //probably going to have to have the matchID as a parameter
 
@@ -586,10 +609,10 @@ async function findPerson(key, value, winOrLose, playerFromWinorLose) {
 async function determineWinOrLose(outcome, summonerFromMatchData) {
   if (outcome == "true") {
     outcome = "win";
-    console.log("outcome:" + outcome + " " + typeof(outcome));
+    console.log("outcome:" + outcome + " " + typeof outcome);
   } else if (outcome == "false") {
     outcome = "lose";
-    console.log("outcome:" + outcome + " " + typeof(outcome));
+    console.log("outcome:" + outcome + " " + typeof outcome);
   }
   const iterator1 = playerBets.keys();
   let currValue;
@@ -597,32 +620,57 @@ async function determineWinOrLose(outcome, summonerFromMatchData) {
 
   for (let i = 0; i < playerBets.size; i++) {
     currValue = iterator1.next().value;
-    console.log(currValue.choice + " " + outcome);
-    console.log("currValueSummoner:" + currValue.summonerName);
-    console.log("summonerFromMatchData:" + summonerFromMatchData);
     if (currValue.summonerName == summonerFromMatchData) {
-      console.log("stage1")
+      console.log("stage1");
       if (currValue.choice === "win" && outcome === "win") {
         distributeReward(currValue.discordID, "correct");
-        console.log(
-          currValue.discordID + " " + currValue.summonerName + " correct win 1"
-        );
-        client.channels.cache.get(channelID).send(currValue.discordID+ " was right!");
+       // console.log(
+         // currValue.discordID + " " + currValue.summonerName + " correct win 1"
+       //);
+        client.channels.cache
+          .get(channelID)
+          .send(
+            currValue.discordID +
+              " was right! " +
+              currValue.summonerName +
+              " won!"
+          );
       } else if (currValue.choice === "lose" && outcome === "lose") {
         distributeReward(currValue.discordID, "correct");
         console.log(
           currValue.discordID + " " + currValue.summonerName + " correct loss"
         );
-        client.channels.cache.get(channelID).send(currValue.discordID+ " was right!");
+        client.channels.cache
+          .get(channelID)
+          .send(
+            currValue.discordID +
+              " was right! " +
+              currValue.summonerName +
+              " lost!"
+          );
       } else {
         distributeReward(currValue.discordID, "wrong");
         console.log(
           currValue.discordID + " " + currValue.summonerName + " wrong"
         );
-        client.channels.cache.get(channelID).send(currValue.discordID+ " was wrong!");
+        client.channels.cache
+          .get(channelID)
+          .send(
+            currValue.discordID +
+              " was wrong! " +
+              currValue.summonerName +
+              " did not " +
+              currValue.choice +
+              "!"
+          );
       }
     }
+    if(riotAPIBuffer.has(currValue.summonerName))
+    {
+      setTimeout(function () {riotAPIBuffer.delete(currValue.summonerName)}, 300000);
+    }
   }
+
   // client.channels.cache.get(channelID).send("Bet over");
   /*playerHashMap.remove(playerFromMatchData);
   betBalanceSchema.find({key}, { _id: false, __v: false });
@@ -649,7 +697,7 @@ async function distributeReward(person, rightOrWrong) {
   //they are currently strings
   console.log(currPlayers);
   if (currPlayers === null) {
-    new betBalanceSchema({
+    await new betBalanceSchema({
       message: new Player(person, 0, 0, 20000),
     }).save();
   }
@@ -678,29 +726,34 @@ async function checkBalance(discordUser) {
     { _id: false, __v: false }
   );
   if (discordUsers === null) {
-    client.channels.cache.get(channelID).send("You don't have a balance, creating one for you now.");
+    client.channels.cache
+      .get(channelID)
+      .send("You don't have a balance, creating one for you now.");
     await new betBalanceSchema({
       message: new Player(discordUser, 0, 0, 20000),
     }).save();
-    discordUsers = await betBalanceSchema.findOne({ "message.discordName": discordUser },{ _id: false, __v: false });
-    client.channels.cache
-    .get(channelID)
-    .send(
-      "Name: " +
-        discordUsers.message.discordName +
-        "\n" +
-        "Correct Bet Guesses: " +
-        discordUsers.message.betWins +
-        "\n" +
-        "Incorrect Bet Guesses: " +
-        discordUsers.message.betLosses +
-        "\n" +
-        "Balance: " +
-        discordUsers.message.balance
+    discordUsers = await betBalanceSchema.findOne(
+      { "message.discordName": discordUser },
+      { _id: false, __v: false }
     );
-  if (discordUsers.message.balance <= 0) {
-    client.channels.cache.get(channelID).send("broke ass");
-  }
+    client.channels.cache
+      .get(channelID)
+      .send(
+        "Name: " +
+          discordUsers.message.discordName +
+          "\n" +
+          "Correct Bet Guesses: " +
+          discordUsers.message.betWins +
+          "\n" +
+          "Incorrect Bet Guesses: " +
+          discordUsers.message.betLosses +
+          "\n" +
+          "Balance: " +
+          discordUsers.message.balance
+      );
+    if (discordUsers.message.balance <= 0) {
+      client.channels.cache.get(channelID).send("broke ass");
+    }
   } else {
     client.channels.cache
       .get(channelID)
@@ -720,5 +773,73 @@ async function checkBalance(discordUser) {
     if (discordUsers.message.balance <= 0) {
       client.channels.cache.get(channelID).send("broke ass");
     }
+  }
+}
+
+async function balTop(msgChannelId) {
+  let balanceList = await betBalanceSchema
+    .find({}, { _id: false, __v: false })
+    .sort({ "message.balance": -1 });
+  balanceList = JSON.stringify(balanceList).replace(
+    /[&\/\\#+()$~\[\]%.'":*?<>{}]/g,
+    ""
+  );
+  balTopCountAmt = balanceList.split(",");
+  // let newArr = balanceList.split("id:")
+  //bject.getOwnPropertyNames(balanceList)
+  //console.log(balTopCountAmt);
+  balTopLongestName = 0;
+
+  if (balanceList != null) {
+    for(let j=0;j<balTopCountAmt.length;j+=4)
+    {
+      if(balTopCountAmt[j].substring(18).length>balTopLongestName)
+      balTopLongestName = balTopCountAmt[j].substring(18).length;
+      //console.log(balTopLongestName)
+    }
+
+
+    for(let y =0;y<balTopCountAmt.length;y+=4)
+    {
+      let balTopWinPercentLength =((1 -parseInt(balTopCountAmt[y + 2].substring(9)) /parseInt(balTopCountAmt[y + 1].substring(7))) *100);
+      if (!Number.isFinite(balTopWinPercentLength) || Number.isNaN(balTopWinPercentLength)) {
+        balTopWinPercentLength = 0;
+        if(balTopWinPercentLength.toString().length>longestPercent)
+        {
+          longestPercent = balTopWinPercentLength.toString().length;
+          console.log(longestPercent);
+        }
+      }else 
+      {
+        if(balTopWinPercentLength.toString().length>longestPercent)
+        {
+          longestPercent = balTopWinPercentLength.toString().length;
+          console.log(longestPercent);
+        }
+      }
+
+     
+}
+console.log(longestPercent);
+
+    
+    for (let i = 0; i < balTopCountAmt.length; i += 4) {
+       balTopWinPercent =(1 -parseInt(balTopCountAmt[i + 2].substring(9)) /parseInt(balTopCountAmt[i + 1].substring(7))) *100;
+      if (!Number.isFinite(balTopWinPercent) || Number.isNaN(balTopWinPercent)) {
+        balTopWinPercent = 0;
+      }
+
+     
+  console.log(" "+ balTopWinPercent.toString().length);
+      client.channels.cache
+        .get(msgChannelId)
+        .send("`" +(balTopCountAmt[i].substring(18)).padEnd(balTopLongestName + 2, " ") + balTopWinPercent +"%" +balTopCountAmt[i + 3].substring(7).padStart((longestPercent - balTopWinPercent.toString().length+13), " ") +"%`");
+    }
+  //  client.channels.cache.get(msgChannelId) .send("`Name" + padBlankString.padEnd(balTopLongestName-2, " ") +       "Prediction Ratio %"+padBlankString.padEnd(longestPercent - balTopWinPercent.toString().length+26) +    " Balance`");
+
+  } else {
+    client.channels.cache
+      .get(msgChannelId)
+      .send("There are no players with a balance");
   }
 }
