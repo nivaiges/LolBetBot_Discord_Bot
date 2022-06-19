@@ -23,6 +23,8 @@ let balTopLongestName = 0;
 let padBlankString = "";
 let longestPercent = 0;
 let balTopWinPercent;
+let balBetWin;
+let balBetLose;
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
 client.login(token);
@@ -42,8 +44,6 @@ client.on("messageCreate", async (message) => {
 
   const args = message.content.slice(prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
-  console.log(command);
-
   if (command == "win") {
     let iterator1 = playerBets.keys();
     let holdIterator;
@@ -820,20 +820,22 @@ async function balTop(msgChannelId) {
 
      
 }
-console.log(longestPercent);
 
-    
     for (let i = 0; i < balTopCountAmt.length; i += 4) {
-       balTopWinPercent =(1 -parseInt(balTopCountAmt[i + 2].substring(9)) /parseInt(balTopCountAmt[i + 1].substring(7))) *100;
+      balBetWin = parseInt(balTopCountAmt[i + 1].substring(7));
+      balBetLose = parseInt(balTopCountAmt[i+2].substring(9))
+       balTopWinPercent = Math.round((balBetWin/(balBetLose+balBetWin))*100);
       if (!Number.isFinite(balTopWinPercent) || Number.isNaN(balTopWinPercent)) {
         balTopWinPercent = 0;
+      }else if(balTopWinPercent<0)
+      {
+        balTopWinPercent = balTopWinPercent*(-1);
       }
+     //console.log(balTopWinPercent);
 
-     
-  console.log(" "+ balTopWinPercent.toString().length);
       client.channels.cache
         .get(msgChannelId)
-        .send("`" +(balTopCountAmt[i].substring(18)).padEnd(balTopLongestName + 2, " ") + balTopWinPercent +"%" +balTopCountAmt[i + 3].substring(7).padStart((longestPercent - balTopWinPercent.toString().length+13), " ") +"%`");
+        .send("`" +(balTopCountAmt[i].substring(18)).padEnd(balTopLongestName + 2, " ") + balTopWinPercent +"%" +balTopCountAmt[i + 3].substring(7).padStart((longestPercent - balTopWinPercent.toString().length+13), " ") +"`");
     }
   //  client.channels.cache.get(msgChannelId) .send("`Name" + padBlankString.padEnd(balTopLongestName-2, " ") +       "Prediction Ratio %"+padBlankString.padEnd(longestPercent - balTopWinPercent.toString().length+26) +    " Balance`");
 
