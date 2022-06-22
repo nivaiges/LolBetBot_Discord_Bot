@@ -7,6 +7,7 @@ import token from "./token.js";
 import axios from "axios";
 import riotApiKey from "./riotApi.js";
 import betListSchema from "./betListSchema.js";
+import notifyMeSchema from "./notifyMeSchema.js"
 const client = new Discord.Client({ intents: ["GUILDS", "GUILD_MESSAGES"] });
 const prefix = "%";
 var searchText = "";
@@ -15,7 +16,7 @@ let channelID = "985533385139183626";
 let playerBets = new Map();
 let playerHashMap = new Map();
 let riotAPIBuffer = new Map();
-const uri = "";
+const uri = "mongodb+srv://";
 let playerListSchema;
 let newError = "";
 let balTopCountAmt;
@@ -129,17 +130,14 @@ client.on("messageCreate", async (message) => {
   } else if (command == "warn" && message.author.username == "nivy") {
     message.channel.send("@" + args + " you have been warned.");
   } else if (command == "betlist") {
-    playerListSchema = await betSchema.findOne({ message: args });
-    if (playerListSchema != null) {
-      message.channel.send(args[0] + " is on the betList");
-    } else {
-      message.channel.send(args[0] + " is on the betList");
-    }
+    betUserList(message.channel.id);
   } else if (command == "startint" && message.author.username == "nivy") {
     console.log(".");
     startInterval();
   } else if (command == "baltop") {
     balTop(message.channel.id);
+  } else if(command == "notifyme"){
+    notifyMe(message.author.id);
   } else if (
     command != "lose" &&
     command != "win" &&
@@ -149,7 +147,8 @@ client.on("messageCreate", async (message) => {
     command != "warn" &&
     command != "betlist" &&
     command != "startint" &&
-    command != "baltop"
+    command != "baltop" &&
+    command!= "notifyme"
   ) {
     message.channel.send(
       command + " is not a valid command \nPlease use %win or %lose"
@@ -844,4 +843,18 @@ async function balTop(msgChannelId) {
       .get(msgChannelId)
       .send("There are no players with a balance");
   }
+}
+
+
+async function betUserList(channelsID)
+{
+  let betUsers =  await betListSchema.find({},{__v: false, _id: false});
+  console.log(betUsers);
+  client.channels.cache.get(channelsID).send(" "+betUsers)
+}
+
+
+async function notifyMe(usersID)
+{
+ // new notifyMeSchema({name: usersID,}).save();
 }
