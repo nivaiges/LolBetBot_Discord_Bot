@@ -16,7 +16,7 @@ let channelID = "985533385139183626";
 let playerBets = new Map();
 let playerHashMap = new Map();
 let riotAPIBuffer = new Map();
-const uri = "mongodb+srv://";
+const uri = "mongodb+srv://niva:jasper8018@mydatabase.qqmsz.mongodb.net/test";
 let playerListSchema;
 let newError = "";
 let balTopCountAmt;
@@ -138,7 +138,11 @@ client.on("messageCreate", async (message) => {
     balTop(message.channel.id);
   } else if(command == "notifyme"){
     notifyMe(message.author.id);
-  } else if (
+  } else if(command == "initialize")
+  {
+    initialize(message.channel.id);
+  } 
+  else if (
     command != "lose" &&
     command != "win" &&
     command != "credits" &&
@@ -148,7 +152,8 @@ client.on("messageCreate", async (message) => {
     command != "betlist" &&
     command != "startint" &&
     command != "baltop" &&
-    command!= "notifyme"
+    command!= "notifyme" &&
+    command!= "initialize"
   ) {
     message.channel.send(
       command + " is not a valid command \nPlease use %win or %lose"
@@ -850,11 +855,17 @@ async function betUserList(channelsID)
 {
   let betUsers =  await betListSchema.find({},{__v: false, _id: false});
   console.log(betUsers);
-  client.channels.cache.get(channelsID).send(" "+betUsers)
+  client.channels.cache.get(channelsID).send(" "+betUsers);
 }
 
 
 async function notifyMe(usersID)
 {
  // new notifyMeSchema({name: usersID,}).save();
+}
+
+
+async function initialize(messageChannelID)
+{
+  channelID = messageChannelID;
 }
