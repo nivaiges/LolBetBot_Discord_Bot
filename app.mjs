@@ -26,6 +26,7 @@ let longestPercent = 0;
 let balTopWinPercent;
 let balBetWin;
 let balBetLose;
+let holderStrings;
 //once client gives a response, it then asks the database for a response
 //after both successfully finish, it console's that the bot is logged in
 client.login(token);
